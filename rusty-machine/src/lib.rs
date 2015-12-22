@@ -37,3 +37,7 @@ pub mod learning {
         fn train(&mut self, data: T);
 	}
 }
+
+pub mod data {
+    pub mod loader;
+}
