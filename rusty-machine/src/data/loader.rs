@@ -19,4 +19,32 @@ impl<'a> Loader<'a> {
 
 		Ok(())
 	}
+
+	// For now we will simply throw errors if we have missing data.
+	// We will only handle Real data types. Anything else will throw errors.
+	//
+	// Reading should go like this:
+	// Read a line - 
+	//
+	// Count cols, add data to the relevent DataCols
+	// 
+}
+
+/// A data table consisting of varying column types and headers.
+pub struct DataTable {
+	rows: usize,
+	cols: usize,
+	data_cols: Vec<DataCols<f64>>,
+}
+
+enum DataType {
+	Reals,
+	Categorical,
+}
+/// A data column with a consistent data type. 
+pub struct DataCols<T> {
+	data_type : DataType,
+	data: Vec<T>,
+	// If categorical - some kind of set for each category
+
 }
