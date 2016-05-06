@@ -48,7 +48,9 @@ impl<'a, 'b, T: Any + Copy + Zero + Add<T, Output=T> + Mul<T, Output=T>> Mul<&'b
     type Output = Matrix<T>;
 
     fn mul(self, m: &$mat_2<T>) -> Matrix<T> {
-        assert!(self.cols == m.rows, "Matrix dimensions do not agree.");
+        assert!(self.cols == m.rows,
+                "Matrix dimensions ({} × {} and {} × {}) do not agree.",
+                self.rows, self.cols, m.rows, m.cols);
 
         let p = self.rows;
         let q = self.cols;
@@ -56,7 +58,7 @@ impl<'a, 'b, T: Any + Copy + Zero + Add<T, Output=T> + Mul<T, Output=T>> Mul<&'b
 
         if same_type::<T, f32>() {
             let mut new_data = Vec::with_capacity(p * r);
-            
+
             unsafe {
                 new_data.set_len(p * r);
 

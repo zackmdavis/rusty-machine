@@ -6,6 +6,7 @@
 use std::ops::{Mul, Add, Div, Sub, Neg};
 use std::cmp;
 use std::any::Any;
+use std::fmt::Debug;
 
 use linalg::matrix::Matrix;
 use linalg::vector::Vector;
@@ -160,7 +161,7 @@ impl<T: Any  + Float> Matrix<T> {
     }
 }
 
-impl<T: Any + Float + Signed> Matrix<T> {
+impl<T: Any + Float + Signed + Debug> Matrix<T> {
     /// Returns H, where H is the upper hessenberg form.
     ///
     /// If the transformation matrix is also required, you should
@@ -663,6 +664,43 @@ impl<T: Any + Float + Signed> Matrix<T> {
             _ => self.francis_shift_eigendecomp()
         }
     }
+
+    /// Computes the singular value decomposition.
+    pub fn singular_value_decomp(&self) -> (Matrix<T>, Matrix<T>, Matrix<T>) {
+        let ata = self.transpose() * self;
+        let (ata_eigenvals, ata_eigvecs) = ata.eigendecomp();
+
+        // (index, √λ) pairs (indices being order of return from `.eigendecomp`)
+        let mut enumerated_singular_vals = ata_eigenvals.iter()
+            .map(|s| s.sqrt())
+            .enumerate()
+            .collect::<Vec<_>>();
+
+        enumerated_singular_vals
+            // ... in descending order by singular value
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("NaN is uncomparable"));
+
+        // Pluck out the eigenvectors in the corresponding order
+        let v = enumerated_singular_vals.iter()
+            .map(|&(i, _sigma)| ata_eigvecs.select_cols(&[i]))
+            .map(|v| { let n = v.norm(); v/n })
+            .fold(Matrix::new(ata.rows(), 0, Vec::new()),
+                  |vs, vi| vs.hcat(&vi));
+
+        let singular_vals = enumerated_singular_vals.iter()
+            .map(|&(_, sigma)| sigma)
+            .collect::<Vec<_>>();
+
+        // u₁ = 1/σ₁ Av₁, &c ...
+        let u = singular_vals.iter()
+            .enumerate()
+            // column iterators (issue #52) could make this less awkward
+            .map(|(i, sigma)| self * T::one()/sigma * v.select_cols(&[i]))
+            .fold(Matrix::new(v.rows(), 0, Vec::new()),
+                  |us, ui| us.hcat(&ui));
+
+        (u, Matrix::from_diag(&singular_vals[..]), v.transpose())
+    }
 }
 
 
@@ -780,6 +818,30 @@ mod tests {
         let epsilon = 0.00001;
         assert!((&a*&v1 - &v1*lambda_1).into_vec().iter().all(|&c| c < epsilon));
         assert!((&a*&v2 - &v2*lambda_2).into_vec().iter().all(|&c| c < epsilon));
+    }
+
+    #[test]
+    fn test_singular_value_decomp() {
+        let a = Matrix::new(2, 3, (1..7).map(|n| n as f64).collect::<Vec<_>>());
+        a.singular_value_decomp();
+        assert!(false);
+    }
+
+    #[test]
+    fn test_eigendecomp_roundtrip() {
+        // arbitrarily chosen eigenvectors and eigenvalues
+        let s = Matrix::new(3, 3, vec![2., 4.9, 6.,
+                                       3., 4.1, 5.0,
+                                       10., 3.1, 16.]);
+        let d = Matrix::new(3, 3, vec![2., 0., 0.,
+                                       0., 3., 0.,
+                                       0., 0., 1.4]);
+        let s_inv = s.clone().inverse();
+        let a = s*d*s_inv;
+        let (lambdas, vs) = a.eigendecomp();
+        println!("V = \n{}", vs);
+        println!("λ_i = {:?}", lambdas);
+        assert!(false);
     }
 
 }
